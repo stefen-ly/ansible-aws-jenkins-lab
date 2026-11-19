@@ -68,6 +68,7 @@ pipeline {
             }
         }
 
+
         stage('4. Deploy to AWS EC2') {
             steps {
                 sshagent(credentials: ['lab2-ssh-key']) {
@@ -76,15 +77,15 @@ pipeline {
                         cd "$LAB_DIR"
 
                         ansible-playbook \
-                          -i inventory.ini \
-                          playbook/fileupload-deploy.yaml \
-                          -e "dockerhub_user=$DOCKERHUB_USER" \
-                          -e 'ansible_ssh_private_key_file=' \
-                          -e 'ansible_ssh_common_args=-o IdentitiesOnly=no'
+                        -i inventory.jenkins.ini \
+                        playbook/fileupload-deploy.yaml \
+                        -f 1 \
+                        -e "dockerhub_user=$DOCKERHUB_USER"
                     '''
                 }
             }
         }
+
 
         stage('SSH Connectivity Test') {
             steps {
@@ -104,6 +105,7 @@ pipeline {
             }
         }
 
+
         stage('5. Verify Containers') {
             steps {
                 sshagent(credentials: ['lab2-ssh-key']) {
@@ -112,15 +114,15 @@ pipeline {
                         cd "$LAB_DIR"
 
                         ansible aws_lab2 \
-                          -i inventory.ini \
-                          -b -m command \
-                          -a "docker ps" \
-                          -e 'ansible_ssh_private_key_file=' \
-                          -e 'ansible_ssh_common_args=-o IdentitiesOnly=no'
+                        -i inventory.jenkins.ini \
+                        -f 1 \
+                        -b -m command \
+                        -a "docker ps"
                     '''
                 }
             }
         }
+
     }
 
     post {
