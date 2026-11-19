@@ -1,0 +1,130 @@
+
+---
+- name: Lab 2 - Create 3 AWS EC2 Instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../vars/instances.yaml
+
+  tasks:
+    - name: Create EC2 instances with different specs
+      amazon.aws.ec2_instance:
+        name: "{{ item.name }}"
+        region: "{{ aws_region }}"
+        image_id: "{{ ami_id }}"
+        instance_type: "{{ item.type }}"
+        key_name: "{{ key_name }}"
+
+        user_data: |
+          #!/bin/bash
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+          apt-get install -y software-properties-common curl git fish zsh tree nginx
+
+          add-apt-repository -y universe
+          apt-get update
+          apt-get install -y neofetch
+
+          systemctl enable --now nginx
+
+          echo "Bootstrap completed" > /var/log/lab2-bootstrap-success.log
+
+        vpc_subnet_id: "{{ subnet_id }}"
+        security_group: "{{ security_group_id }}"
+        volumes:
+          - device_name: "{{ root_device }}"
+            ebs:
+              volume_type: gp3
+              volume_size: "{{ item.disk }}"
+              delete_on_termination: true
+        
+        tags:
+          Project: IaC_Lab
+          Lab: lab2
+          Name: "{{ item.name }}"
+        exact_count: 1
+        filters:
+          "tag:Project": IaC_Lab
+          "tag:Lab": lab2
+          "tag:Name": "{{ item.name }}"
+          "instance-state-name":
+              - pending
+              - running
+              - stopping
+              - stopped
+        state: running
+        wait: true
+      loop: "{{ ec2_instances }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: target_name | default('all') == 'all' or item.name == target_name
+      register: ec2_results
+
+    - name: Show EC2 creation results
+      ansible.builtin.debug:
+        msg: "{{ item.item.name }} => {{ item.instance_ids | default(['Not created - check mode']) }}"
+      loop: "{{ ec2_results.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      
+
+    - name: Get Lab 2 EC2 information
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Project": IaC_Lab
+          "tag:Lab": lab2
+          "instance-state-name":
+            - running
+            - stopped
+      register: ec2_info
+      tags:
+        - inventory
+
+    - name: Generate inventory.ini using Jinja2
+      ansible.builtin.template:
+        src: ../templates/inventory.ini.j2
+        dest: "{{ playbook_dir }}/../inventory.ini"
+        mode: "0644"
+      vars:
+        lab_instances: "{{ ec2_info.instances }}"
+      when: not ansible_check_mode
+      tags:
+        - inventory
+
+    - name: Ensure SSH directory exists on Controller
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/.ssh"
+        state: directory
+        mode: "0700"
+      when: not ansible_check_mode
+      tags:
+        - inventory
+
+    - name: Automatically configure SSH aliases for Lab 2
+      ansible.builtin.blockinfile:
+        path: "{{ lookup('env', 'HOME') }}/.ssh/config"
+        create: true
+        mode: "0600"
+        insertbefore: BOF
+        marker: "# {mark} ANSIBLE MANAGED LAB2"
+        block: |
+          {% for instance in ec2_info.instances | sort(attribute='tags.Name') %}
+          {% if instance.tags.Name in (ec2_instances | map(attribute='name') | list) %}
+          Host {{ instance.tags.Name }}
+              HostName {{ instance.private_ip_address }}
+              User ubuntu
+              IdentityFile ~/.ssh/jenkins_ansible_v2
+              IdentitiesOnly yes
+              StrictHostKeyChecking accept-new
+
+          {% endif %}
+          {% endfor %}
+      when: not ansible_check_mode
+      tags:
+        - inventory
+

@@ -1,0 +1,61 @@
+
+---
+- name: Lab 2 - Stop 3 AWS EC2 Instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../vars/instances.yaml
+
+  tasks:
+    - name: Find Lab 2 EC2 instances
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Project": IaC_Lab
+          "tag:Lab": lab2
+          "instance-state-name":
+            - running
+            - pending
+            - stopping
+            - stopped
+      register: lab2_info
+
+    - name: Select configured Lab 2 machines
+      ansible.builtin.set_fact:
+        lab2_instances: >-
+          {{
+            lab2_info.instances
+            | selectattr(
+                'tags.Name',
+                'in',
+                ec2_instances | map(attribute='name') | list
+              )
+            | list
+          }}
+
+    - name: Show instances to stop
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.tags.Name }} =>
+          {{ item.instance_id }}
+          ({{ item.state.name }})
+      loop: "{{ lab2_instances }}"
+      loop_control:
+        label: "{{ item.tags.Name }}"
+
+    - name: Stop selected Lab 2 EC2
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids:
+          - "{{ item.instance_id }}"
+        state: stopped
+        wait: true
+      loop: "{{ lab2_instances }}"
+      loop_control:
+        label: "{{ item.tags.Name }}"
+      when: >
+        target_name | default('all') == 'all'
+        or item.tags.Name == target_name
+

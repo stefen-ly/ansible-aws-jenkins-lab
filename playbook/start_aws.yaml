@@ -1,0 +1,51 @@
+
+---
+- name: Lab 2 - Start AWS EC2 Instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../vars/instances.yaml
+
+  tasks:
+    - name: Validate target name
+      ansible.builtin.assert:
+        that:
+          - target_name | default('all') == 'all' or target_name in (ec2_instances | map(attribute='name') | list)
+        fail_msg: "Invalid target_name"
+
+    - name: Find Lab 2 EC2 instances
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Project": IaC_Lab
+          "tag:Lab": lab2
+          "instance-state-name":
+            - running
+            - stopped
+      register: ec2_info
+
+    - name: Show EC2 instances
+      ansible.builtin.debug:
+        msg: "{{ item.tags.Name }} => {{ item.instance_id }} ({{ item.state.name }})"
+      loop: "{{ ec2_info.instances }}"
+      loop_control:
+        label: "{{ item.tags.Name | default(item.instance_id) }}"
+      when:
+        - item.tags.Name | default('') in (ec2_instances | map(attribute='name') | list)
+        - target_name | default('all') == 'all' or item.tags.Name | default('') == target_name
+
+    - name: Start selected Lab 2 EC2
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids:
+          - "{{ item.instance_id }}"
+        state: running
+        wait: true
+      loop: "{{ ec2_info.instances }}"
+      loop_control:
+        label: "{{ item.tags.Name | default(item.instance_id) }}"
+      when:
+        - item.tags.Name | default('') in (ec2_instances | map(attribute='name') | list)
+        - target_name | default('all') == 'all' or item.tags.Name | default('') == target_name

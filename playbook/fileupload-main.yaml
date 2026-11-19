@@ -1,0 +1,6 @@
+---
+- name: Build and Push
+  import_playbook: fileupload-build.yaml
+
+- name: Deploy
+  import_playbook: fileupload-deploy.yaml

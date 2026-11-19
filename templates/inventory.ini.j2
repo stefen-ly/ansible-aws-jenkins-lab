@@ -1,0 +1,12 @@
+
+[aws_lab2]
+{% for instance in lab_instances %}
+{% if instance.tags.Name in (ec2_instances | map(attribute='name') | list) %}
+{{ instance.tags.Name }} ansible_host={{ instance.private_ip_address }} ec2_instance_id={{ instance.instance_id }}
+{% endif %}
+{% endfor %}
+
+[aws_lab2:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=/home/ubuntu/.ssh/jenkins_ansible_v2
+ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes'

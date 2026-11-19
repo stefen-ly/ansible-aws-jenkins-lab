@@ -1,0 +1,49 @@
+
+---
+- name: Build and Push Spring Fileupload
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - ../vars/fileupload-vars.yaml
+
+  vars:
+    full_image: "{{ dockerhub_user }}/{{ fileupload.image_name }}:{{ fileupload.image_tag }}"
+
+  tasks:
+    - name: Validate Docker Hub username
+      ansible.builtin.assert:
+        that:
+          - dockerhub_user is defined
+          - dockerhub_user | length > 0
+
+    - name: Clone source code if missing
+      ansible.builtin.git:
+        repo: "{{ fileupload.git_url }}"
+        dest: "{{ fileupload.source_dir }}"
+        version: HEAD
+        update: false
+
+    - name: Check dev.Dockerfile exists
+      ansible.builtin.stat:
+        path: "{{ fileupload.source_dir }}/dev.Dockerfile"
+      register: dockerfile
+
+    - name: Require dev.Dockerfile
+      ansible.builtin.assert:
+        that:
+          - dockerfile.stat.exists
+
+    - name: Build Docker Image
+      ansible.builtin.command:
+        cmd: "docker build -t {{ full_image }} -f dev.Dockerfile ."
+        chdir: "{{ fileupload.source_dir }}"
+
+    - name: Push Docker Image
+      ansible.builtin.command:
+        cmd: "docker push {{ full_image }}"
+
+    - name: Show Image
+      ansible.builtin.debug:
+        msg: "Pushed {{ full_image }}"

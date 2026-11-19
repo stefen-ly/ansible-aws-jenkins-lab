@@ -1,0 +1,26 @@
+
+---
+aws_region: ap-southeast-1
+
+# Ubuntu AMI configuration
+ami_id: ami-0ae8fb59bd8e0dd06
+root_device: /dev/sda1
+
+# AWS networking
+subnet_id: subnet-08f4643eb00c7edc2
+security_group_id: sg-009a5f801dbd75128
+key_name: ansible-iac-lab1-key
+
+# EC2 specifications
+ec2_instances:
+  - name: iac-lab2-node1
+    type: t3.micro
+    disk: 10
+
+  - name: iac-lab2-node2
+    type: t3.small
+    disk: 20
+
+  - name: iac-lab2-node3
+    type: t3.small
+    disk: 30

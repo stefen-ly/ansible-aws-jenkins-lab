@@ -1,0 +1,8 @@
+---
+fileupload:
+  git_url: "https://gitlab.com/devops-trainings3/special-trainning/sample-projects/simple-fileupload-gradle.git"
+  source_dir: "{{ playbook_dir }}/../source/fileupload"
+  deploy_dir: "/opt/fileupload"
+  image_name: "ansible-spring-file-svc"
+  image_tag: "latest"
+  port: 8080

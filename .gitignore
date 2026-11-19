@@ -1,0 +1,16 @@
+# Generated inventory and local files
+inventory.ini
+*.retry
+*.log
+
+# SSH keys and credentials
+*.pem
+*.key
+.env
+.env.*
+
+# Local application clone
+source/
+
+# Ansible local data
+.ansible/

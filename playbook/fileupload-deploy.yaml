@@ -1,0 +1,72 @@
+
+---
+- name: Deploy Spring Fileupload to AWS EC2
+  hosts: aws_lab2
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - ../vars/fileupload-vars.yaml
+
+  vars:
+    full_image: "{{ dockerhub_user }}/{{ fileupload.image_name }}:{{ fileupload.image_tag }}"
+
+  tasks:
+    - name: Install Docker and Compose
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create deployment directory
+      ansible.builtin.file:
+        path: "{{ fileupload.deploy_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Generate Docker Compose file
+      ansible.builtin.copy:
+        dest: "{{ fileupload.deploy_dir }}/compose.yaml"
+        mode: "0644"
+        content: |
+          services:
+            fileupload:
+              image: {{ full_image }}
+              pull_policy: always
+              ports:
+                - "{{ fileupload.port }}:8080"
+              volumes:
+                - fileupload-data:/app/filestorage/images
+              restart: unless-stopped
+
+          volumes:
+            fileupload-data:
+
+    - name: Pull Docker Image
+      ansible.builtin.command:
+        cmd: docker compose pull
+        chdir: "{{ fileupload.deploy_dir }}"
+
+    - name: Deploy Docker Container
+      ansible.builtin.command:
+        cmd: docker compose up -d --force-recreate
+        chdir: "{{ fileupload.deploy_dir }}"
+
+    - name: Check running containers
+      ansible.builtin.command:
+        cmd: docker compose ps
+        chdir: "{{ fileupload.deploy_dir }}"
+      register: container_status
+      changed_when: false
+
+    - name: Show container status
+      ansible.builtin.debug:
+        var: container_status.stdout_lines
