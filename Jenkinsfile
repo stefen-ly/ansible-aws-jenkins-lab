@@ -87,6 +87,7 @@ pipeline {
         }
 
 
+
         stage('SSH Connectivity Test') {
             steps {
                 sshagent(credentials: ['lab2-ssh-key']) {
@@ -95,15 +96,14 @@ pipeline {
                         cd "$LAB_DIR"
 
                         ansible aws_lab2 \
-                        -i inventory.ini \
+                        -i inventory.jenkins.ini \
                         -f 1 \
-                        -m ping \
-                        -e 'ansible_ssh_private_key_file=' \
-                        -e 'ansible_ssh_common_args=-o IdentitiesOnly=no'
+                        -m ping
                     '''
                 }
             }
         }
+
 
 
         stage('5. Verify Containers') {
