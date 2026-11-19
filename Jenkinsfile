@@ -25,14 +25,14 @@ pipeline {
                 dir("${LAB_DIR}") {
                     sh '''
                         set -e
-                        ansible-playbook \
-                          playbook/fileupload-main.yaml \
-                          --syntax-check
+                        cd /home/ubuntu/IaC_Lab/lab2
 
-                        ansible-inventory \
-                          -i inventory.ini --graph
+                        ansible-playbook \
+                        playbook/fileupload-main.yaml \
+                        --syntax-check
+
+                        ansible-inventory -i inventory.ini --graph
                     '''
-                }
             }
         }
 
